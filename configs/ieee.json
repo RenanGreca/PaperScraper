@@ -1,0 +1,9 @@
+{
+    "url" : "https://ieeexplore.ieee.org/Xplore/home.jsp",
+    "query": "(((\"Document Title\":test OR testing) AND (\"Abstract\":software) AND (\"Abstract\":evaluat* OR metric OR indicator OR cost OR relevant OR relevance) AND (\"Abstract\":industry OR industrial OR practic* OR applicab* OR scal*) AND (\"Abstract\":regression OR selection OR prioriti* OR augmentation OR amplification OR reduction OR minimi*)))",
+    "publication_topics": [
+        "program testing"
+    ],
+    "start_year": "2016",
+    "end_year": "2020"
+}
