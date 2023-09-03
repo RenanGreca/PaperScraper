@@ -61,7 +61,7 @@ export class SpringerSearch {
         await this.downloadButton.click()
         const download = await downloadPromise
 
-        const csvPath = `./downloads/springer.csv`
+        const csvPath = `./downloads/springer1.csv`
         await download.saveAs(csvPath)
     }
 }

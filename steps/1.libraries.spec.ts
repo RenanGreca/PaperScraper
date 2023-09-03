@@ -80,33 +80,3 @@ for (const library of libraries) {
     
     })
 }
-
-// test(`Perform search in IEEE`, async ({ page, dateRange }) => {
-//     test.slow()
-
-//     const ieeePOM = new IEEESearch(page)
-
-//     const numberOfHits = await test.step('Initial search', async() => {
-//         await ieeePOM.performQuery(ieee.url, ieee.query, dateRange.startYear, dateRange.endYear, ieee.publicationTopics)
-//         const numberOfHits = await ieeePOM.getNumberOfHits()
-//         console.log(`[IEEE] Nº of results: ${numberOfHits}`)
-//         return numberOfHits
-//     })
-
-//     const numPages = Math.ceil(numberOfHits/ieee.pageSize)
-
-//     for(let i=1; i<=numPages; i++) {
-//         await test.step('Export results to CSV', async() => {
-//             await ieeePOM.exportResults(i)
-//             console.log(`[IEEE] Page ${i}/${numPages} - Downloaded CSV`)
-//         })
-
-//         if (await ieeePOM.nextPageButton.isVisible()) {
-//             await ieeePOM.nextPageButton.click()
-//         } else {
-//             console.log(`[IEEE] Finished ${i}/${numPages}`)
-//             break
-//         }
-//     }
-
-// })
