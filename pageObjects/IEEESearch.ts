@@ -25,9 +25,13 @@ export class IEEESearch {
     downloadButton: Locator;
     paginationButtons: Locator;
     cancelButton: Locator;
+    dismissCookiesButton: Locator;
 
     constructor(page: Page) {
         this.page = page
+
+        this.dismissCookiesButton = page.getByText('Accept & Close')
+
         this.searchBar = page.locator('input[type="search"]')
         this.searchButton = page.getByRole('button', {name: "Search"})
         this.header = page.locator('.Dashboard-header')
@@ -67,26 +71,22 @@ export class IEEESearch {
     async performQuery(
             url: string, query: string,
             startYear: Number, endYear: Number,
-            publicationTopics: string[]
+            params: {publicationTopics?: string[]}
         ) {
-        // await this.page.goto(url)
-        // await this.page.getByText('Accept & Close').click()
-        // await this.searchBar.fill(query)
-        // await this.searchButton.click()
-
-        // const headerText = await this.header.textContent()
-        // expect(headerText).toContain(query)
-
         let queryURL = url
         queryURL += query
-        for (const topic of publicationTopics) {
-            queryURL += `&refinements=ControlledTerms:${topic}`
+        if (params?.publicationTopics) {
+            for (const topic of params.publicationTopics) {
+                queryURL += `&refinements=ControlledTerms:${topic}`
+            }
         }
         queryURL += `&ranges=${startYear}_${endYear}_Year`
         
 
         await this.page.goto(queryURL)
-        await this.page.getByText('Accept & Close').click()
+        try {
+            await this.dismissCookiesButton.click()
+        } catch {}
     }
 
     async getNumberOfHits() {
@@ -122,7 +122,9 @@ export class IEEESearch {
         await expect.configure({timeout: 30000})(this.matches).toHaveCount(100)
     }
 
-    async exportResults(i: Number) {
+    async exportResults(i: Number = 1) {
+        await this.selectAllCheckbox.click()
+
         await this.exportButton.click()
 
         const downloadPromise = this.page.waitForEvent('download', {timeout: 5000})

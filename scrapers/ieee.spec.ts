@@ -1,53 +1,112 @@
 import ieee from "../configs/ieee.json";
+import acm from "../configs/acm.json"
+import springer from "../configs/springer.json"
+import wiley from "../configs/wiley.json"
 import { test } from "./base";
 import { IEEESearch } from "../pageObjects/IEEESearch";
+import { ACMSearch } from "../pageObjects/ACMSearch";
+import { SpringerSearch } from "../pageObjects/SpringerSearch";
+import { WileySearch } from "../pageObjects/WileySearch";
 
-test(`Perform search in IEEE`, async ({ page, dateRange }) => {
-    test.slow()
+test.describe.configure({ mode: 'parallel' });
 
-    const ieeePOM = new IEEESearch(page)
+const libraries = [
+    {
+        name: "IEEE",
+        Pom: IEEESearch,
+        params: ieee,
+        format: "CSV",
+        singleExport: false
+    },
+    {
+        name: "ACM",
+        Pom: ACMSearch,
+        params: acm,
+        format: "JSON",
+        singleExport: false
+    },
+    {
+        name: "Springer",
+        Pom: SpringerSearch,
+        params: springer,
+        format: "CSV",
+        singleExport: true
+    },
+    {
+        name: "Wiley",
+        Pom: WileySearch,
+        params: wiley,
+        format: "BibTex",
+        singleExport: false
+    }
+]
 
-    await test.step('Initial search', async() => {
-        await ieeePOM.performQuery(ieee.url, ieee.query, dateRange.startYear, dateRange.endYear, ieee.publicationTopics)
-        const numberOfHits = await ieeePOM.getNumberOfHits()
-        console.log(`(1) Initial nº of results: ${numberOfHits}`)
-    })
-
-    // await test.step('Filter results by year', async() => {
-    //     await ieeePOM.filterByYear(dateRange.startYear, dateRange.endYear)
-    //     const numberOfHits = await ieeePOM.getNumberOfHits()
-    //     console.log(`(2) Nº of results filtered by year: ${numberOfHits}`)
-    // })
-
-    // await test.step('Filter results by publication topic', async() => {
-    //     await ieeePOM.filterByPublicationTopics(ieee.publicationTopics)
-    //     const numberOfHits = await ieeePOM.getNumberOfHits()
-    //     console.log(`(3) Nº of results filtered by publication topic: ${numberOfHits}`)
-    // })
-
-    // await test.step('Increase number of results per page', async() => {
-    //     await ieeePOM.increaseItemsPerPage()
-    //     console.log(`(4) Set items per page to 100`)
-    // })
-
-    let i = 1
-    do {
-        await test.step('Select all results in page', async() => {
-            await ieeePOM.selectAllCheckbox.click()
-            console.log(`(5.${i}) Selected all results in page`)
-        })
+for (const library of libraries) {
+    test(`Perform search in ${library.name}`, async ({ page, dateRange }) => {
+        test.setTimeout(5*60*1000)
+        
+        const name = library.name
+        const json = library.params
+        const pom = new library.Pom(page)
     
-        await test.step('Export results to CSV', async() => {
-            await ieeePOM.exportResults(i)
-            console.log(`(6.${i}) Downloaded CSV`)
-            i += 1
+        const numberOfHits = await test.step('Initial search', async() => {
+            console.log(`[${name}] Loading page...`)
+            await pom.performQuery(json.url, json.query, dateRange.startYear, dateRange.endYear, json.params)
+            const numberOfHits = await pom.getNumberOfHits()
+            console.log(`[${name}] Nº of results: ${numberOfHits}`)
+            return numberOfHits
         })
 
-        if (await ieeePOM.nextPageButton.isVisible()) {
-            await ieeePOM.nextPageButton.click()
+        if (library.singleExport) {
+            await pom.exportResults()
+            console.log(`[${name}]Downloaded ${library.format}`)
         } else {
-            break
+            const numPages = Math.ceil(numberOfHits/json.pageSize)
+        
+            for(let i=1; i<=numPages; i++) {
+                await test.step(`Export results to ${library.format}`, async() => {
+                    await pom.exportResults(i)
+                    console.log(`[${name}] Page ${i}/${numPages} - Downloaded ${library.format}`)
+                })
+        
+                if (await pom.nextPageButton.isVisible()) {
+                    await pom.nextPageButton.click()
+                } else {
+                    console.log(`[${name}] Finished ${i}/${numPages}`)
+                    break
+                }
+            }
         }
-    } while (true)
+    
+    })
+}
 
-})
+// test(`Perform search in IEEE`, async ({ page, dateRange }) => {
+//     test.slow()
+
+//     const ieeePOM = new IEEESearch(page)
+
+//     const numberOfHits = await test.step('Initial search', async() => {
+//         await ieeePOM.performQuery(ieee.url, ieee.query, dateRange.startYear, dateRange.endYear, ieee.publicationTopics)
+//         const numberOfHits = await ieeePOM.getNumberOfHits()
+//         console.log(`[IEEE] Nº of results: ${numberOfHits}`)
+//         return numberOfHits
+//     })
+
+//     const numPages = Math.ceil(numberOfHits/ieee.pageSize)
+
+//     for(let i=1; i<=numPages; i++) {
+//         await test.step('Export results to CSV', async() => {
+//             await ieeePOM.exportResults(i)
+//             console.log(`[IEEE] Page ${i}/${numPages} - Downloaded CSV`)
+//         })
+
+//         if (await ieeePOM.nextPageButton.isVisible()) {
+//             await ieeePOM.nextPageButton.click()
+//         } else {
+//             console.log(`[IEEE] Finished ${i}/${numPages}`)
+//             break
+//         }
+//     }
+
+// })

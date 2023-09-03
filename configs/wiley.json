@@ -1,0 +1,8 @@
+{
+    "baseURL" : "https://onlinelibrary.wiley.com",
+    "url" : "https://onlinelibrary.wiley.com/action/doSearch?ConceptID=68&content=articlesChapters&",
+    "pageSize": 20,
+    "query": "field1=Title&field2=Abstract&field3=Abstract&field4=Abstract&target=default&text1=test%20OR%20testing&text2=evaluat*%20OR%20metric%20OR%20indicator%20OR%20investment%20OR%20cost%20OR%20relevan*&text3=industr*%20OR%20practic*%20OR%20applicab*%20OR%20scal*&text4=regression%20OR%20selection%20OR%20prioriti*%20OR%20augmentation%20OR%20reduction%20OR%20minimi*",
+    "params": {
+    }
+}

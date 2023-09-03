@@ -1,0 +1,14 @@
+{
+    "baseURL" : "https://link.springer.com",
+    "url" : "https://link.springer.com/search?date-facet-mode=between&just-selected-from-overlay=facet-sub-discipline&",
+    "pageSize": 100,
+    "query": "query=%28evaluat*+OR+metric+OR+indicator+OR+investment+OR+cost+OR+relevant+OR+relevance%29+AND+%28industry+OR+industrial+OR+practic*+OR+applicab*+OR+scal*%29+AND+%28regression+OR+selection+OR+prioriti*+OR+augmentation+OR+amplification+OR+reduction+OR+minimi*%29&dc.title=test",
+    "params": {
+        "discipline": [
+            "%22Computer+Science%22"
+        ],
+        "subDiscipline": [
+            "%22Software+Engineering%22"   
+        ]
+    }
+}
