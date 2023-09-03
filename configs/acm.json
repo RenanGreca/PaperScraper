@@ -1,0 +1,4 @@
+{
+    "url" : "https://dl.acm.org/action/doSearch?fillQuickSearch=false&target=advanced&expand=all&pageSize=100&",
+    "query": "Title%3A(test+OR+testing)+AND+Abstract%3A(evaluat*+OR+metric+OR+indicator+OR+investment+OR+cost+OR+relevan*)+AND+Abstract%3A(industr*+OR+practic*+OR+applicab*+OR+scal*)+AND+Abstract%3A(regression+OR+selection+OR+prioriti*+OR+(amplification+OR+augmentation)+OR+(reduction+OR+minimi*))+AND+Abstract%3A(software)"
+}

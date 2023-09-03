@@ -5,3 +5,4 @@ node_modules/
 /papertrail/
 .github/
 .DS_Store
+/downloads

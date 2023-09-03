@@ -22,6 +22,9 @@ export class IEEESearch {
     nextPageButton: Locator;
     selectAllCheckbox: Locator;
     exportButton: Locator;
+    downloadButton: Locator;
+    paginationButtons: Locator;
+    cancelButton: Locator;
 
     constructor(page: Page) {
         this.page = page
@@ -50,29 +53,52 @@ export class IEEESearch {
         this.matches = page.locator('.List-results-items')
         this.selectAllCheckbox = page.getByRole('checkbox', {name: "Select All on Page"})
 
+
+
         this.nextPageButton = page.locator('.next-btn')
 
+        this.paginationButtons = page.locator('.pagination-bar')
+
         this.exportButton = page.getByRole('button', {name: 'Export'})
+        this.downloadButton = page.getByRole('button', {name: 'Download'})
+        this.cancelButton = page.getByRole('button', {name: 'Cancel'})
     }
 
-    async performQuery(url: string, query: string) {
-        await this.page.goto(url)
-        await this.searchBar.fill(query)
-        await this.searchButton.click()
+    async performQuery(
+            url: string, query: string,
+            startYear: Number, endYear: Number,
+            publicationTopics: string[]
+        ) {
+        // await this.page.goto(url)
+        // await this.page.getByText('Accept & Close').click()
+        // await this.searchBar.fill(query)
+        // await this.searchButton.click()
 
-        const headerText = await this.header.textContent()
-        expect(headerText).toContain(query)
+        // const headerText = await this.header.textContent()
+        // expect(headerText).toContain(query)
+
+        let queryURL = url
+        queryURL += query
+        for (const topic of publicationTopics) {
+            queryURL += `&refinements=ControlledTerms:${topic}`
+        }
+        queryURL += `&ranges=${startYear}_${endYear}_Year`
+        
+
+        await this.page.goto(queryURL)
+        await this.page.getByText('Accept & Close').click()
     }
 
     async getNumberOfHits() {
-        const numberOfHits = await this.numberOfHits.textContent()
+        const resultCount = await this.numberOfHits.textContent()
+        const numberOfHits = Number(resultCount?.replace(/\D/g,''))
         expect(numberOfHits).toBeTruthy()
         return numberOfHits
     }
 
-    async filterByYear(start: string, end: string) {
-        await this.yearFrom.fill(start)
-        await this.yearTo.fill(end)
+    async filterByYear(start: Number, end: Number) {
+        await this.yearFrom.fill(start.toString())
+        await this.yearTo.fill(end.toString())
         await this.yearApplyButton.click()
     }
 
@@ -96,15 +122,17 @@ export class IEEESearch {
         await expect.configure({timeout: 30000})(this.matches).toHaveCount(100)
     }
 
-    async exportResults() {
+    async exportResults(i: Number) {
         await this.exportButton.click()
 
         const downloadPromise = this.page.waitForEvent('download', {timeout: 5000})
-        await this.exportButton.click()
+        await this.downloadButton.click()
         const download = await downloadPromise
 
-        const csvPath = "./ieee1.csv"
+        const csvPath = `./downloads/ieee${i}.csv`
         await download.saveAs(csvPath)
+
+        // await this.cancelButton.click()
         
     }
 }
