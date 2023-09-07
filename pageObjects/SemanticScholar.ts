@@ -1,4 +1,6 @@
-import { expect, Page, Locator } from "@playwright/test"
+import { expect, Page, Locator, request } from "@playwright/test"
+const similarity = require('string-cosine-similarity')
+
 
 export type StandardJSON = {
     title: string,
@@ -58,50 +60,73 @@ export class SemanticScholar {
         await this.dismissCookiesButton.click()
     }
 
-    async search(title: string): Promise<StandardJSON> {
-        await this.searchBar.fill(title)
-        await this.searchButton.click()
-        await this.firstResult.waitFor() // .toContainText(title, {ignoreCase: true})
+    async search(title: string): Promise<[StandardJSON?, string?]> {
+        title = removePunctuations(title)
+        console.log(`[Semantic] searching for "${title}"`)
+        
+        let url = `https://api.semanticscholar.org/graph/v1/paper/search?`
+        url += `query=${encodeURIComponent(title)}`
+        url += '&fields=title,authors,externalIds,abstract,publicationDate,year,publicationVenue'
+        url += '&limit=1'
 
-        await this.firstResult.click()
+        const context = await request.newContext()
+        const response = await context.get(url, {
+            headers: {
+                'x-api-key': require('../semantic_scholar.json').api_key
+            }
+        })
 
-        await this.title.waitFor() //.toContainText(title, {ignoreCase: true})
+        expect(response).toBeTruthy()
+        // console.log(`[Semantic] API response status: ${response.status()}`)                 
 
-        let titlestring
+        let responseJSON = await response.json()
+        // console.log(responseJSON)
+        
         try {
-            titlestring = await this.title.textContent()
-        } catch { }
+            expect(responseJSON.data).toHaveLength(1) // exactly one result
+            const cleantitleAPI = removePunctuationsAndSpaces(responseJSON.data[0].title)
+            const cleantitleCSV = removePunctuationsAndSpaces(title)
+            if (cleantitleAPI != cleantitleCSV) {
+                console.error(`[Semantic] Mismatched titles:`)
+                console.error(`[Semantic] API: ${cleantitleAPI}`)
+                console.error(`[Semantic] CSV: ${cleantitleCSV}`)
+                console.error(`[Semantic] Cosine similarity: ${similarity(responseJSON.data[0].title, title)}`)
+                expect(similarity(responseJSON.data[0].title, title)).toBeGreaterThan(0.9)
+                console.log(`[Semantic] Similarity > 0.9, assuming correct match.`)
+            }
+            // expect(removePunctuationsAndSpaces(responseJSON.data[0].title)).toEqual(removePunctuationsAndSpaces(title)) // result title matches search query
+        } catch {
+            const err = `Paper not found for "${title}"`
+            return Promise.resolve([undefined, err])
+        }
 
-        try { 
-            await this.authorListExpand.click({ timeout: 500 })
-        } catch { }
-        let authors = await this.authors.textContent()
+        responseJSON = responseJSON.data[0]
+        const doi = responseJSON.externalIds.DOI
 
-        let date = await this.date.textContent()
-
-        let abstract
-        try { 
-            await this.expandAbstract.click({ timeout: 500 })
-            abstract = await this.abstract.textContent()
-        } catch { }
-
-        let doi
-        try {
-            doi = await this.doi.textContent({ timeout: 500 })
-        } catch { }
-
+        if (!doi) {
+            const err = `DOI not found for "${title}"`
+            return Promise.resolve([undefined, err])
+        }
         const paper: StandardJSON = {
-            title: titlestring,
-            authors: authors.split(',').map(el => el.replace('less', '').trim()),
-            date: new Date("1 May 2017").toISOString().split('T')[0],
-            year: '',
-            abstract: abstract,
+            title: responseJSON.title,
+            authors: responseJSON.authors.map(el => el.name),
+            date: responseJSON.publicationDate,
+            year: responseJSON.year,
+            abstract: responseJSON.abstract,
             doi: doi,
-            publisher: '',
+            publisher: responseJSON.publicationVenue.name,
             source: ['semantic-scholar']
         }
 
-        return paper
+        return Promise.resolve([paper, undefined])
 
     }
+}
+
+function removePunctuations(word: string) {
+    return word.replace(/[\!\.\,\?\-\‐\/]/gi, ' ').replace(/[^\w\s]|_/g, "").toLowerCase().trim() //.replace(/[\!\.\,\?\-\?\'\"\‐]/gi, ' ').toLowerCase().trim();
+};
+
+function removePunctuationsAndSpaces(word: string) {
+    return removePunctuations(word).replace(/ /g, '')
 }

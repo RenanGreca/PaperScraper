@@ -13,6 +13,7 @@
   "dependencies": {
     "bib2json": "^0.0.1",
     "citation-js": "^0.6.8",
-    "csvtojson": "^2.0.10"
+    "csvtojson": "^2.0.10",
+    "string-cosine-similarity": "^2.0.1"
   }
 }
