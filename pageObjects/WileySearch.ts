@@ -1,4 +1,25 @@
-import { expect, Page, Locator } from "@playwright/test";``
+import { expect, Page, Locator } from "@playwright/test";
+
+export type Wiley = {
+    ObjectType: string,
+    EntryType: string,
+    EntryKey: string,
+    Fields: {
+      author: string,
+      title: string,
+      journal: string,
+      volume: string,
+      number: string,
+      pages: string,
+      keywords: string,
+      doi: string,
+      url: string,
+      eprint: string,
+      note: string,
+      abstract: string,
+      year: string,
+    },
+}
 
 export class WileySearch {
     page: Page

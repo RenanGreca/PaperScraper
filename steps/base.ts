@@ -7,6 +7,6 @@ type DateRange = {
 
 export const test = base.extend<{}, { dateRange: DateRange }>({
     dateRange: [async ({ browser }, use, workerInfo) => {
-        await use({startYear: 2016, endYear: 2020} )
+        await use({startYear: 2021, endYear: 2023} )
     }, { scope: 'worker' }]
 });

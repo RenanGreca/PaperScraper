@@ -1,6 +1,36 @@
 import { expect, Page, Locator } from "@playwright/test";
 import { writeFileSync } from 'fs';
 
+export type ACM = {
+    id: string,
+    type: string,
+    author: {
+        family: string,
+        given: string,
+      }[],
+    accessed: any,
+    issued: {
+      "date-parts": Number[][],
+    },
+    "original-date": {
+      "date-parts": Number[][],
+    },
+    abstract: string,
+    "call-number": string,
+    "collection-title": string,
+    "container-title": string,
+    DOI: string,
+    "event-place": string,
+    ISBN: string,
+    keyword: string,
+    "number-of-pages": string,
+    page: string,
+    publisher: string,
+    "publisher-place": string,
+    title: string,
+    URL: string,
+}
+
 export class ACMSearch {
     page: Page;
     resultCount: Locator;

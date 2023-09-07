@@ -1,5 +1,38 @@
 import { expect, Page, Locator } from "@playwright/test";
 
+export type IEEE = {
+    "Document Title": string,
+    Authors: string,
+    "Author Affiliations": string,
+    "Publication Title": string,
+    "Date Added To Xplore": string,
+    "Publication Year": string,
+    Volume: string,
+    Issue: string,
+    "Start Page": string,
+    "End Page": string,
+    Abstract: string,
+    ISSN: string,
+    ISBNs: string,
+    DOI: string,
+    "Funding Information": string,
+    "PDF Link": string,
+    "Author Keywords": string,
+    "IEEE Terms": string,
+    "INSPEC Controlled Terms": string,
+    "INSPEC Non-Controlled Terms": string,
+    Mesh_Terms: string,
+    "Article Citation Count": string,
+    "Patent Citation Count": string,
+    "Reference Count": string,
+    License: string,
+    "Online Date": string,
+    "Issue Date": string,
+    "Meeting Date": string,
+    Publisher: string,
+    "Document Identifier": string,
+}
+
 export class IEEESearch {
 
     page: Page
@@ -127,7 +160,7 @@ export class IEEESearch {
 
         await this.exportButton.click()
 
-        const downloadPromise = this.page.waitForEvent('download', {timeout: 5000})
+        const downloadPromise = this.page.waitForEvent('download', {timeout: 60000})
         await this.downloadButton.click()
         const download = await downloadPromise
 

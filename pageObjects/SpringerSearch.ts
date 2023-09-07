@@ -1,4 +1,17 @@
-import { expect, Page, Locator } from "@playwright/test";``
+import { expect, Page, Locator } from "@playwright/test";
+
+export type Springer = {
+    "Item Title": string,
+    "Publication Title": string,
+    "Book Series Title": string,
+    "Journal Volume": string,
+    "Journal Issue": string,
+    "Item DOI": string,
+    Authors: string,
+    "Publication Year": string,
+    URL: string,
+    "Content Type": string,
+}
 
 export class SpringerSearch {
     page: Page

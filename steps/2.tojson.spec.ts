@@ -1,9 +1,15 @@
 import { test } from "./base"
+import { expect } from "@playwright/test"
 import csv2json from 'csvtojson'
 // import { BibtexParser as bib2json } from 'bib2json'
 const bib2json = require('bib2json')
-import { readFileSync, statSync, writeFileSync } from "node:fs"
+import { readFileSync, statSync, writeFileSync, appendFileSync } from "node:fs"
 import path from "path"
+import { IEEE } from "../pageObjects/IEEESearch"
+import { ACM } from "../pageObjects/ACMSearch"
+import { Springer } from "../pageObjects/SpringerSearch"
+import { Wiley } from "../pageObjects/WileySearch"
+import { SemanticScholar, StandardJSON } from "../pageObjects/SemanticScholar"
 
 test.describe.configure({ mode: 'serial' });
 
@@ -34,178 +40,201 @@ const libraries = [
     }
 ]
 
-type StandardJSON = {
-    title: string,
-    authors: string[],
-    date: string
-    year: string
-    abstract: string
-    doi: string
-    publisher: string
-    source: string[]
+function removePunctuations(word: string) {
+    return word.replace(/[^\w\s\']|_/g, "").toLowerCase().trim() //.replace(/[\!\.\,\?\-\?\'\"\‐]/gi, ' ').toLowerCase().trim();
+};
+
+function removePunctuationsAndSpaces(word: string) {
+    return removePunctuations(word).replace(/ /g, '')
 }
+  
 
-type IEEE = {
-    "Document Title": string,
-    Authors: string,
-    "Author Affiliations": string,
-    "Publication Title": string,
-    "Date Added To Xplore": string,
-    "Publication Year": string,
-    Volume: string,
-    Issue: string,
-    "Start Page": string,
-    "End Page": string,
-    Abstract: string,
-    ISSN: string,
-    ISBNs: string,
-    DOI: string,
-    "Funding Information": string,
-    "PDF Link": string,
-    "Author Keywords": string,
-    "IEEE Terms": string,
-    "INSPEC Controlled Terms": string,
-    "INSPEC Non-Controlled Terms": string,
-    Mesh_Terms: string,
-    "Article Citation Count": string,
-    "Patent Citation Count": string,
-    "Reference Count": string,
-    License: string,
-    "Online Date": string,
-    "Issue Date": string,
-    "Meeting Date": string,
-    Publisher: string,
-    "Document Identifier": string,
-}
+test(`Convert master list to JSON`, async( {page, request} ) => {
+    const missingDOIsPath = path.resolve('downloads', 'missingDOIs.txt')
+    const missingDOIs = readFileSync(missingDOIsPath).toString().split('\n')
 
-type ACM = {
-    id: string,
-    type: string,
-    author: {
-        family: string,
-        given: string,
-      }[],
-    accessed: any,
-    issued: {
-      "date-parts": Number[][],
-    },
-    "original-date": {
-      "date-parts": Number[][],
-    },
-    abstract: string,
-    "call-number": string,
-    "collection-title": string,
-    "container-title": string,
-    DOI: string,
-    "event-place": string,
-    ISBN: string,
-    keyword: string,
-    "number-of-pages": string,
-    page: string,
-    publisher: string,
-    "publisher-place": string,
-    title: string,
-    URL: string,
-}
+    const filePath = path.resolve('downloads', `masterList.standard.json`)
+    let masterList: StandardJSON[] = require(filePath)
+    const existingRows = Object.keys(masterList).length + missingDOIs.length
 
-type Springer = {
-    "Item Title": string,
-    "Publication Title": string,
-    "Book Series Title": string,
-    "Journal Volume": string,
-    "Journal Issue": string,
-    "Item DOI": string,
-    Authors: string,
-    "Publication Year": string,
-    URL: string,
-    "Content Type": string,
-}
+    const json = await csv2json({delimiter: ","}).fromFile('master-list.csv')
 
-type Wiley = {
-    ObjectType: string,
-    EntryType: string,
-    EntryKey: string,
-    Fields: {
-      author: string,
-      title: string,
-      journal: string,
-      volume: string,
-      number: string,
-      pages: string,
-      keywords: string,
-      doi: string,
-      url: string,
-      eprint: string,
-      note: string,
-      abstract: string,
-      year: string,
-    },
-  }
+    console.log(`[Semantic] Timeout: ${20+2*(json.length-existingRows)}s`)
+    test.setTimeout((20+2*(json.length-existingRows))*1000) // 20s + 2s per row
 
-for (const library of libraries) {
-    test(`Converting output of ${library.name} to JSON`, async() => {
-        let i = 1
-        let filePath = path.resolve('downloads', `${library.name.toLowerCase()}${i}.${library.format.toLowerCase()}`)
-        let jsons: any[] = []
-        // let stat = statSync(filePath)
-        while (exists(filePath)) {
-            console.log(`[${library.name}] ${i} - reading ${library.name.toLowerCase()}${i}.${library.format.toLowerCase()}.`)
-            const json = await library.formatter(filePath)
-            jsons = jsons.concat(json)
-            i += 1
-            filePath = path.resolve('downloads', `${library.name.toLowerCase()}${i}.${library.format.toLowerCase()}`)
-        }
+    console.log(`[Semantic] Starting at row ${existingRows}`)
 
-        console.log(`${library.name} Converting to standardized JSON`)
-        const standardjson = library.converter(jsons)
+    for (let i=existingRows; i<json.length; i++) {
 
-        console.log(`${library.name} Saving standardized JSON to ${library.name.toLowerCase()}.standard.json`)
-        filePath = path.resolve('downloads', `${library.name.toLowerCase()}.standard.json`)
-        writeFileSync(filePath, JSON.stringify(standardjson))
-    })
-}
+        await Promise.all([
+            page.waitForTimeout(1000), // To avoid overloading the API, we make sure that each request is at least 1s apart.
+            test.step(`[Semantic] ${i}/${json.length} - getting metadata for paper`, async() => {
+                console.log(`[Semantic] ${i}/${json.length} - getting metadata for paper`)
+                const row = json[i]
+                const title = removePunctuations(row['Title'])
+        
+                console.log(`[Semantic] searching for "${title}"`)
+        
+                let url = `https://api.semanticscholar.org/graph/v1/paper/search?`
+                url += `query=${encodeURIComponent(title)}`
+                url += '&fields=title,authors,externalIds,abstract,publicationDate,year'
+                url += '&limit=1'
+        
+                const response = await request.get(url, {
+                    headers: {
+                        'x-api-key': require('../semantic_scholar.json').api_key
+                    }
+                })
 
-test.afterAll(async() => {
-    let jsons: StandardJSON[] = []
+                expect(response).toBeTruthy()
+                console.log(`[Semantic] API response status: ${response.status()}`)                 
+        
+                let responseJSON = await response.json()
+                console.log(responseJSON)
 
+                // expect(responseJSON.data).toHaveLength(1) // exactly one result
+                // expect(removePunctuationsAndSpaces(responseJSON.title)).toEqual(removePunctuationsAndSpaces(title)) // result title matches search query
+
+                try {
+                    expect(responseJSON.data).toHaveLength(1) // exactly one result
+                    expect(removePunctuationsAndSpaces(responseJSON.data[0].title)).toEqual(removePunctuationsAndSpaces(title)) // result title matches search query
+                } catch {
+                    console.error(`[Semantic] Paper not found for ${title}`)
+                    appendFileSync(missingDOIsPath, `Paper not found for "${title}"\n`)
+                    return
+                }
+                
+                responseJSON = responseJSON.data[0]
+                const doi = responseJSON.externalIds.DOI
+        
+                if (!doi) {
+                    console.error(`[Semantic] DOI not found for ${title}`)
+                    appendFileSync(missingDOIsPath, `DOI not found for "${title}"\n`)
+                } else {
+                    const paper: StandardJSON = {
+                        title: responseJSON.title,
+                        authors: responseJSON.authors.map(el => el.name),
+                        date: responseJSON.publicationDate,
+                        year: responseJSON.year,
+                        abstract: responseJSON.abstract,
+                        doi: doi,
+                        publisher: '',
+                        source: ['semantic-scholar']
+                    }
+            
+                    masterList[doi] = paper
+                    writeFileSync(filePath, JSON.stringify(masterList))
+                }
+            })
+        ])
+       
+    }
+
+    // const response = await request.get(url, {
+    //     headers: {
+    //         'x-api-key': require('../semantic_scholar.json').api_key
+    //     }
+    // })
+
+    // console.log(await response.json())
+
+
+    // const missingDOIsPath = path.resolve('downloads', 'missingDOIs.txt')
+    // const missingDOIs = readFileSync(missingDOIsPath).toString().split('\n')
+    // const filePath = path.resolve('downloads', `masterList.standard.json`)
+    // let masterList: StandardJSON[] = require(filePath)
+    // const existingRows = Object.keys(masterList).length + missingDOIs.length
+    // const json = await csv2json({delimiter: ","}).fromFile('master-list.csv')
+
+    // const pom = new SemanticScholar(page)
+    // await pom.load()
+
+    // console.log(`[Semantic] Timeout: ${20*(json.length-existingRows)}s`)
+    // test.setTimeout(20*1000*(json.length-existingRows)) // 20 secs per row
+
+    // // let jsons: StandardJSON[] = []
+    // for (let i=existingRows; i<json.length; i++) {
+    //     console.log(`[Semantic] ${i}/${json.length} - getting metadata for paper`)
+    //     const row = json[i]
+    //     const title = row['Title']
+    //     const result = await pom.search(title)
+    //     if (!result.doi) {
+    //         console.error(`[Semantic] DOI not found for ${title}`)
+    //         appendFileSync(missingDOIsPath, `DOI not found for "${title}"\n`)
+    //     } else {
+    //         masterList[result.doi] = result
+    //         writeFileSync(filePath, JSON.stringify(masterList))
+    //     }
+    // }
+
+})
+
+test.describe(`Convert formats to JSON`, async() => {
     for (const library of libraries) {
-        const filePath = path.resolve('downloads', `${library.name.toLowerCase()}.standard.json`)
-        if (!exists(filePath)) {
-            console.error(`[${library.name}] standardized JSON not found at path ${filePath}.`)
-            continue
-        }
-        const json = require(filePath)
-        jsons = jsons.concat(json)
+        test(`Converting output of ${library.name} to JSON`, async() => {
+            let i = 1
+            let filePath = path.resolve('downloads', `${library.name.toLowerCase()}${i}.${library.format.toLowerCase()}`)
+            let jsons: any[] = []
+            // let stat = statSync(filePath)
+            while (exists(filePath)) {
+                console.log(`[${library.name}] ${i} - reading ${library.name.toLowerCase()}${i}.${library.format.toLowerCase()}.`)
+                const json = await library.formatter(filePath)
+                jsons = jsons.concat(json)
+                i += 1
+                filePath = path.resolve('downloads', `${library.name.toLowerCase()}${i}.${library.format.toLowerCase()}`)
+            }
+
+            console.log(`${library.name} Converting to standardized JSON`)
+            const standardjson = library.converter(jsons)
+
+            console.log(`${library.name} Saving standardized JSON to ${library.name.toLowerCase()}.standard.json`)
+            filePath = path.resolve('downloads', `${library.name.toLowerCase()}.standard.json`)
+            writeFileSync(filePath, JSON.stringify(standardjson))
+        })
     }
 
-    let i = 0
-    let duplicates = 0
-    let combined = {}
-    for (const row of jsons) {
-        if (row.doi) {
-            if (combined[row.doi]) {
-                // console.log(`Found Duplicate`)
-                combined[row.doi].source = combined[row.doi].source.concat(row.source)
-                duplicates += 1
-            } else {
-                combined[row.doi] = row
-                i += 1
+    test.afterAll(async() => {
+        let jsons: StandardJSON[] = []
+
+        for (const library of libraries) {
+            const filePath = path.resolve('downloads', `${library.name.toLowerCase()}.standard.json`)
+            if (!exists(filePath)) {
+                console.error(`[${library.name}] standardized JSON not found at path ${filePath}.`)
+                continue
             }
-        } else {
-            if (combined[row.title]) {
-                // console.log(`Found Duplicate`)
-                combined[row.title].source = combined[row.title].source.concat(row.source)
-                duplicates += 1
+            const json = require(filePath)
+            jsons = jsons.concat(json)
+        }
+
+        let i = 0
+        let duplicates = 0
+        let combined = {}
+        for (const row of jsons) {
+            if (row.doi) {
+                if (combined[row.doi]) {
+                    // console.log(`Found Duplicate`)
+                    combined[row.doi].source = combined[row.doi].source.concat(row.source)
+                    duplicates += 1
+                } else {
+                    combined[row.doi] = row
+                    i += 1
+                }
             } else {
-                combined[row.title] = row
-                i += 1
+                if (combined[row.title]) {
+                    // console.log(`Found Duplicate`)
+                    combined[row.title].source = combined[row.title].source.concat(row.source)
+                    duplicates += 1
+                } else {
+                    combined[row.title] = row
+                    i += 1
+                }
             }
         }
-    }
 
-    console.log(`Extracted ${i} items with ${duplicates} duplicates.`)
-    const filePath = path.resolve('downloads', `combined.standard.json`)
-    writeFileSync(filePath, JSON.stringify(combined))
+        console.log(`Extracted ${i} items with ${duplicates} duplicates.`)
+        const filePath = path.resolve('downloads', `combined.standard.json`)
+        writeFileSync(filePath, JSON.stringify(combined))
+    })
 })
 
 function exists(path: string) : boolean {
@@ -257,7 +286,7 @@ function acm2json(json: any[]): StandardJSON[] {
         const row: ACM = Object.entries(element)[0][1] as ACM
         // const row: ACM = a[1]
         if (!row.DOI) {
-            console.error(`[ACM] DOI is undefined for article of type ${row.type.trim()}`)
+            console.error(`[ACM] DOI is undefined for article ${row.title.trim()}`)
             continue
         }
         if (!row.author) {
